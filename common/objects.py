@@ -130,9 +130,9 @@ class ForeignKey(Base):
 		self.date_added = datetime.datetime.now()
 
 	def __str__(self):
-		return "{0} {1:10}.{2:20}.{3:50} -->  {4:10}.{5:20}.{6:50}".format(self.db_catalog,
-																	  self.db_schema, self.tablename, self.columns,
-																	  self.ref_db_schema, self.ref_tablename, self.ref_columns)
+		return "{0} {1:75} -->  {2:75}".format(self.db_catalog,
+											   "{0}.{1}.{2}".format(self.db_schema, self.tablename, self.columns),
+											   "{0}.{1}.{2}".format(self.ref_db_schema, self.ref_tablename, self.ref_columns))
 
 class Table(Base):
 	__tablename__ = 'mtable'
