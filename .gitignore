@@ -5,7 +5,7 @@ __pycache__/
 *.swp
 *.pyc
 config.js
-config.ini
+profiler/config.ini
 *.sublime-project
 *.sublime-workspace
-
+.idea

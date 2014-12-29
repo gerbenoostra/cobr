@@ -275,8 +275,11 @@ class Discovery():
 				if math.isnan(emdscore):
 					emdscore = -1
 
-				nfk = ForeignKey(db_catalog=pk.db_catalog, pkdb_schema=pk.db_schema, fkdb_schema=fschema, pktablename=pk.tablename, fktablename=ftable, fk_columns=fcols, keyname='implicit_fk', type='implicit')
-				nfk.pk_columns=pk.db_columns
+				nfk = ForeignKey(db_catalog=pk.db_catalog,
+								 schema=pk.db_schema, tablename=pk.tablename,
+								 ref_schema=fschema, ref_tablename=ftable, ref_columns=fcols,
+								 keyname='implicit_fk', type='implicit')
+				nfk.columns=pk.db_columns
 				nfk.score = emdscore
 
 				result.append((nfk, emdscore))

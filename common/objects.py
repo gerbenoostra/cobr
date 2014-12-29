@@ -104,33 +104,35 @@ class ForeignKey(Base):
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
 	db_catalog = Column(String(512))
-	pkdb_schema = Column(String(512))
-	fkdb_schema = Column(String(512))
-	pktablename = Column(String(512))
-	fktablename = Column(String(512))
-	pk_columns = Column(String(512))
-	fk_columns = Column(String(512))
-	keyname = Column(String(512))
-	type = Column(String(512))
+	db_schema = Column(String(512, convert_unicode=True))
+	ref_db_schema = Column(String(512, convert_unicode=True))
+	tablename = Column(String(512, convert_unicode=True))
+	ref_tablename = Column(String(512, convert_unicode=True))
+	columns = Column(String(512, convert_unicode=True))
+	ref_columns = Column(String(512, convert_unicode=True))
+	keyname = Column(String(512, convert_unicode=True))
+	type = Column(String(512, convert_unicode=True))
 	score = Column(Float)
-	comment = Column(String(2048))
-	tags = Column(String(2048))
+	comment = Column(String(2048, convert_unicode=True))
+	tags = Column(String(2048, convert_unicode=True))
 	date_added = Column(DateTime)
 
-	def __init__(self, db_catalog='', pkdb_schema='', fkdb_schema='', pktablename='', fktablename='', pk_columns=[], fk_columns=[], keyname='', type='explicit'):
-		self.db_catalog = db_catalog
-		self.pkdb_schema = pkdb_schema
-		self.fkdb_schema = fkdb_schema
-		self.pktablename = pktablename
-		self.fktablename = fktablename
-		self.pk_columns = multistring_separator.join(pk_columns) # can be single...
-		self.fk_columns = multistring_separator.join(fk_columns) # can be single...
-		self.keyname = keyname
-		self.type = type
+	def __init__(self, db_catalog='', schema='', ref_schema='', tablename='', ref_tablename='', columns=[], ref_columns=[], keyname='', type='explicit'):
+		self.db_catalog = db_catalog.__str__()
+		self.db_schema = schema.__str__()
+		self.ref_db_schema = ref_schema.__str__()
+		self.tablename = tablename.__str__()
+		self.ref_tablename = ref_tablename.__str__()
+		self.columns = multistring_separator.join(columns).__str__() # can be single...
+		self.ref_columns = multistring_separator.join(ref_columns).__str__() # can be single...
+		self.keyname = keyname.__str__()
+		self.type = type.__str__()
 		self.date_added = datetime.datetime.now()
 
 	def __str__(self):
-		return "{0}.{1:10} {2:50} {3}".format(self.db_catalog, self.db_schema, self.pktablename, self.fktablename)
+		return "{0} {1:10}.{2:20}.{3:50} -->  {4:10}.{5:20}.{6:50}".format(self.db_catalog,
+																	  self.db_schema, self.tablename, self.columns,
+																	  self.ref_db_schema, self.ref_tablename, self.ref_columns)
 
 class Table(Base):
 	__tablename__ = 'mtable'
@@ -156,9 +158,9 @@ class Table(Base):
 	date_added = Column(DateTime)
 
 	def __init__(self, db_catalog='', db_schema='', tablename=''):
-		self.db_catalog = db_catalog
-		self.db_schema = db_schema
-		self.tablename = tablename
+		self.db_catalog = db_catalog.__str__()
+		self.db_schema = db_schema.__str__()
+		self.tablename = tablename.__str__()
 
 		self.num_rows = None
 		self.num_columns = None

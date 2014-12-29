@@ -12,7 +12,7 @@ class MssqlMetaMiner():
 		self.db_user = db_user
 		self.db_password = db_password
 
-	def getTableRowCount(self, table=None):
+	def getTableRowCount(self, table):
 		retval = float('nan')
 		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
 			with conn.cursor() as cursor:
@@ -196,34 +196,36 @@ class MssqlMetaMiner():
 					with cte1 as (
 						SELECT  
 							obj.name AS FK_NAME,
-							pksch.name AS [pkschema],
-							fksch.name AS [fkschema],
-							tab1.name AS [table],
-							col1.name AS [column],
-							tab2.name AS [referenced_table],
-							col2.name AS [referenced_column]
+							fk_schema.name AS [schema],
+							ref_schema.name AS [referenced_schema],
+							fk_table.name AS [table],
+							fk_col.name AS [column],
+							ref_table.name AS [referenced_table],
+							ref_col.name AS [referenced_column]
+							-- the foreign key from schema.table.column refers to referenced_schema.referenced_table.referenced_column
+							-- the referenced colum(s) usually is the primary key on that table, but should at least be unique
 						FROM sys.foreign_key_columns fkc
 						INNER JOIN sys.objects obj
 							ON obj.object_id = fkc.constraint_object_id
-						INNER JOIN sys.tables tab1
-							ON tab1.object_id = fkc.parent_object_id
-						INNER JOIN sys.tables tab2
-							ON tab2.object_id = fkc.referenced_object_id
-						INNER JOIN sys.schemas pksch
-							ON tab1.schema_id = pksch.schema_id
-						INNER JOIN sys.schemas fksch
-							ON tab2.schema_id = fksch.schema_id
-						INNER JOIN sys.columns col1
-							ON col1.column_id = parent_column_id AND col1.object_id = tab1.object_id
-						INNER JOIN sys.columns col2
-							ON col2.column_id = referenced_column_id AND col2.object_id = tab2.object_id
+						INNER JOIN sys.tables fk_table  -- the table having the foreign key constraint
+							ON fk_table.object_id = fkc.parent_object_id
+						INNER JOIN sys.tables ref_table  -- the table being referenced by the foreign key constraint
+							ON ref_table.object_id = fkc.referenced_object_id
+						INNER JOIN sys.schemas fk_schema
+							ON fk_table.schema_id = fk_schema.schema_id
+						INNER JOIN sys.schemas ref_schema
+							ON ref_table.schema_id = ref_schema.schema_id
+						INNER JOIN sys.columns fk_col
+							ON fk_col.column_id = parent_column_id AND fk_col.object_id = fk_table.object_id
+						INNER JOIN sys.columns ref_col
+							ON ref_col.column_id = referenced_column_id AND ref_col.object_id = ref_table.object_id
 					)
 
 					SELECT
-						G.pkschema,
-						G.fkschema,
-						G.[table] as pktable,
-						G.referenced_table as fktable,
+						G.[schema],
+						G.[referenced_schema],
+						G.[table],  -- the table having a foreign key constraint (the from)
+						G.[referenced_table],  --the table with a primary key (being pointed to by foreign key constraint) (the to)
 						G.FK_NAME,
 						stuff(
 						(
@@ -231,18 +233,26 @@ class MssqlMetaMiner():
 							from cte1 U
 							WHERE U.FK_NAME = G.FK_NAME
 							for xml path('')
-						), 1, 1, '') AS pkcolumns,
+						), 1, 1, '') AS fk_columns, -- the concatenation of all columns that together uniquely refer to a row in ref_table
 						stuff(
 						(
 							select cast('{0}' as varchar(max)) + U.[referenced_column]
 							from cte1 U
 							WHERE U.FK_NAME = G.FK_NAME
 							for xml path('')
-						), 1, 1, '') AS fkcolumns
+						), 1, 1, '') AS ref_columns -- the concatenation of all columns that together unique define how rows in ref_table should be referred to
 					FROM
 						cte1 G
 					GROUP BY
-						G.FK_NAME, G.pkschema, G.fkschema, G.[table], G.referenced_table
+						G.FK_NAME, G.[schema], G.referenced_schema, G.[table], G.referenced_table
 				 """.format(columnseparator))
-				retval = [ ForeignKey(db_catalog=self.db_catalog, pkdb_schema=d[0], fkdb_schema=d[1], pktablename=d[2], fktablename=d[3], keyname=d[4], pk_columns=d[5].split(columnseparator), fk_columns=d[6].split(columnseparator), type='explicit') for d in cursor.fetchall() ]
+				retval = [ ForeignKey(db_catalog=self.db_catalog,
+									  schema=d[0],
+									  ref_schema=d[1],
+									  tablename=d[2],
+									  ref_tablename=d[3],
+									  keyname=d[4],
+									  columns=d[5].split(columnseparator),
+									  ref_columns=d[6].split(columnseparator), type='explicit'
+				) for d in cursor.fetchall() ]
 		return retval

@@ -165,5 +165,8 @@ class MysqlMetaMiner():
 				GROUP BY
 					TABLE_NAME, TABLE_SCHEMA, REFERENCED_TABLE_NAME, REFERENCED_TABLE_SCHEMA
 			""".format(columnseparator, self.db_catalog))
-			retval = [ ForeignKey(db_catalog=d[1], pkdb_schema='', fkdb_schema='', pktablename=d[3], fktablename=d[4], keyname=d[5], pk_columns=d[6].split(columnseparator), fk_columns=d[7].split(columnseparator), type='explicit') for d in cursor.fetchall() ]
+			retval = [ ForeignKey(db_catalog=d[1],
+								  schema='', tablename=d[3], columns=d[6].split(columnseparator),
+								  ref_schema='', ref_tablename=d[4], ref_columns=d[7].split(columnseparator),
+								  keyname=d[5] , type='explicit') for d in cursor.fetchall() ]
 		return retval
