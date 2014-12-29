@@ -129,6 +129,12 @@ class ForeignKey(Base):
 		self.type = type.__str__()
 		self.date_added = datetime.datetime.now()
 
+	def table(self):
+		return Table(self.db_catalog, self.db_schema, self.tablename)
+
+	def refTable(self):
+		return Table(self.db_catalog, self.ref_db_schema, self.ref_tablename)
+
 	def __str__(self):
 		return "{0} {1:75} -->  {2:75}".format(self.db_catalog,
 											   "{0}.{1}.{2}".format(self.db_schema, self.tablename, self.columns),
@@ -240,11 +246,11 @@ class Column(Base):
 	date_added = Column(DateTime)
 
 	def __init__(self, db_catalog='', db_schema='', tablename='', columnname='', datatype=None, ordinal_position=None):
-		self.db_catalog = db_catalog
-		self.db_schema = db_schema
-		self.tablename = tablename
-		self.columnname = columnname
-		self.datatype = datatype
+		self.db_catalog = db_catalog.__str__()
+		self.db_schema = db_schema.__str__()
+		self.tablename = tablename.__str__()
+		self.columnname = columnname.__str__()
+		self.datatype = datatype.__str__()
 		self.ordinal_position = ordinal_position
 		self.date_added = datetime.datetime.now()
 

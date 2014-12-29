@@ -40,13 +40,13 @@ class MssqlMetaMiner():
 						TABLE_NAME = '{2}'""".format(table.db_catalog, table.db_schema, table.tablename))
 				retval = cursor.fetchone()[0]
 		return retval
-	
+
 	def getDataForTable(self, table=None, verbose=False):
 		if table is None:
 			return
 
 		retval = []
-		with pymssql.connect(options.db_host, options.db_user, options.db_password, options.db_catalog) as conn:
+		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
 			with conn.cursor(as_dict=True) as cursor:
 				query = """
 					SELECT 
@@ -54,7 +54,7 @@ class MssqlMetaMiner():
 					FROM 
 						[{0}].[{1}]
 					""".format(table.db_catalog, table.tablename)
-				
+
 				if verbose:
 					print(query)
 					print('')
@@ -85,7 +85,7 @@ class MssqlMetaMiner():
 
 		orderByStr = ''
 		if order:
-			
+
 			if column.datatype in tdict:
 				orderByStr = 'ORDER BY {0} {1} '.format(tdict[column.datatype].format(column.columnname), order)
 			else:
@@ -101,7 +101,7 @@ class MssqlMetaMiner():
 						[{1}].[{2}]
 					{3}
 					""".format(selectclause, column.db_schema, column.tablename, orderByStr)
-				
+
 				if verbose:
 					print(query)
 					print('')
@@ -126,12 +126,12 @@ class MssqlMetaMiner():
 				retval = [ Table(db_catalog=d[0], db_schema=d[1], tablename=d[2]) for d in cursor.fetchall() ]
 		return retval
 
-	def getColumns(self):
+	def getColumns(self, table=None):
 		retval = []
 		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
 			with conn.cursor() as cursor:
-				cursor.execute("""
-					SELECT 
+				query="""
+					SELECT
 						T.TABLE_CATALOG, C.TABLE_SCHEMA, C.TABLE_NAME, C.COLUMN_NAME, C.DATA_TYPE, C.ORDINAL_POSITION
 					FROM
 						INFORMATION_SCHEMA.COLUMNS C
@@ -140,8 +140,15 @@ class MssqlMetaMiner():
 					ON
 						C.TABLE_CATALOG = T.TABLE_CATALOG and C.TABLE_SCHEMA = T.TABLE_SCHEMA and C.TABLE_NAME = T.TABLE_NAME
 					WHERE
-						T.TABLE_CATALOG = '{0}' AND T.TABLE_TYPE = 'BASE TABLE' 
-					""".format(self.db_catalog))
+						T.TABLE_CATALOG = %s AND T.TABLE_TYPE = 'BASE TABLE'
+						{0}
+					"""
+				if table == None:
+					query=query.format("")
+					cursor.execute(query, (self.db_catalog))
+				else:
+					query=query.format("AND C.TABLE_NAME = %s")
+					cursor.execute(query, (self.db_catalog, table.tablename))
 				retval = [ Column(db_catalog=d[0], db_schema=d[1], tablename=d[2], columnname=d[3], datatype=d[4], ordinal_position=d[5]) for d in cursor.fetchall() ]
 		return retval
 
@@ -262,4 +269,27 @@ class MssqlMetaMiner():
 									  columns=d[5].split(columnseparator),
 									  ref_columns=d[6].split(columnseparator), type='explicit'
 				) for d in cursor.fetchall() ]
+		return retval
+
+	def getQueryForFlatTable(self, table):
+		query_select = ["SELECT {0}.*".format(table.tablename)]
+		query_from = ["FROM {0} ".format(table.tablename)]
+		fks = self.getForeignKeys(table)
+		for fk in fks:
+			#TODO: only works for single columns
+			ref_alias = "{0}_{1}".format(fk.columns, fk.ref_tablename)
+			query_select.extend(["{0}.{1} AS {2}_{1}".format(ref_alias, c.columnname, fk.columns)
+								 for c in self.getColumns(fk.refTable())])
+			query_from.extend(["LEFT JOIN {0} AS {1} ON {2}.{3}={1}.{4}".format(fk.ref_tablename, ref_alias,
+																				fk.tablename, fk.columns,
+																				fk.ref_columns)])
+		query="{0}\r\n{1}".format(",\r\n       ".join(query_select),
+								"\r\n     ".join(query_from))
+		return query
+
+	def execute(self, query, *args):
+		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
+			with conn.cursor() as cursor:
+				cursor.execute(query, args)
+				retval = [ d for d in cursor.fetchall() ]
 		return retval

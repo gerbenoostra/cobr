@@ -24,13 +24,15 @@ def main():
 		db_password=config['subjectdb']['db_password'])
 	print("tables")
 	for t in miner.getTables():
-		print(t)
 		print("foreign keys of '%s'" % t)
 		for fk in miner.getForeignKeys(t):
 			print(fk)
+		print(miner.getQueryForFlatTable(t))
+		miner.execute(miner.getQueryForFlatTable(t))
 	print("alltogether now")
 	for fk in miner.getForeignKeys():
 		print(fk)
+
 
 
 if __name__ == '__main__':
