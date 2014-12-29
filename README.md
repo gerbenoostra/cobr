@@ -23,6 +23,7 @@
 * pip install flask_restless
 * pip install sqlalchemy
 * pip install pymssql
+* pip install pymysql
 * pip install elasticsearch
 * pip install requests
 * pip install configparser
