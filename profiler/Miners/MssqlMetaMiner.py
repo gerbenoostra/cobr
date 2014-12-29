@@ -188,13 +188,13 @@ class MssqlMetaMiner():
 				retval = [ PrimaryKey(db_catalog=d[0], db_schema=d[1], tablename=d[2], keyname=d[3], db_columns=d[4].split(columnseparator), type='explicit') for d in cursor.fetchall() ]
 		return retval
 
-	def getForeignKeys(self, columnseparator='|'):
+	def getForeignKeys(self, table=None, columnseparator='|'):
 		retval = []
 		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
 			with conn.cursor() as cursor:
-				cursor.execute(""" 
+				query="""
 					with cte1 as (
-						SELECT  
+						SELECT
 							obj.name AS FK_NAME,
 							fk_schema.name AS [schema],
 							ref_schema.name AS [referenced_schema],
@@ -219,6 +219,7 @@ class MssqlMetaMiner():
 							ON fk_col.column_id = parent_column_id AND fk_col.object_id = fk_table.object_id
 						INNER JOIN sys.columns ref_col
 							ON ref_col.column_id = referenced_column_id AND ref_col.object_id = ref_table.object_id
+						{0}
 					)
 
 					SELECT
@@ -229,14 +230,14 @@ class MssqlMetaMiner():
 						G.FK_NAME,
 						stuff(
 						(
-							select cast('{0}' as varchar(max)) + U.[column]
+							select cast(%s as varchar(max)) + U.[column]
 							from cte1 U
 							WHERE U.FK_NAME = G.FK_NAME
 							for xml path('')
 						), 1, 1, '') AS fk_columns, -- the concatenation of all columns that together uniquely refer to a row in ref_table
 						stuff(
 						(
-							select cast('{0}' as varchar(max)) + U.[referenced_column]
+							select cast(%s as varchar(max)) + U.[referenced_column]
 							from cte1 U
 							WHERE U.FK_NAME = G.FK_NAME
 							for xml path('')
@@ -245,7 +246,13 @@ class MssqlMetaMiner():
 						cte1 G
 					GROUP BY
 						G.FK_NAME, G.[schema], G.referenced_schema, G.[table], G.referenced_table
-				 """.format(columnseparator))
+						"""
+				if table==None:
+					query=query.format("")
+					cursor.execute(query, (columnseparator, columnseparator))
+				else:
+					query=query.format("WHERE fk_table.name=%s AND fk_schema.name=%s")
+					cursor.execute(query, (table.tablename, table.db_schema, columnseparator, columnseparator))
 				retval = [ ForeignKey(db_catalog=self.db_catalog,
 									  schema=d[0],
 									  ref_schema=d[1],

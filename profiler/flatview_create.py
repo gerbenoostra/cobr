@@ -25,7 +25,10 @@ def main():
 	print("tables")
 	for t in miner.getTables():
 		print(t)
-	print("foreign keys")
+		print("foreign keys of '%s'" % t)
+		for fk in miner.getForeignKeys(t):
+			print(fk)
+	print("alltogether now")
 	for fk in miner.getForeignKeys():
 		print(fk)
 
