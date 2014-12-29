@@ -21,14 +21,16 @@
 * pip install flask
 * pip install flask_sqlalchemy
 * pip install flask_restless
-* pip install pymssql
 * pip install sqlalchemy
 * pip install pymssql
 * pip install elasticsearch
 * pip install requests
+* pip install configparser
+* pip install sortedcontainers
+* pip install numpy
 
 # Profiling
-First, create a `config.ini` file by copying the `template_config.ini` file and filling in the empty fields. [subjectdb] represents the database you will be profiling, [metadb] represents the database where profiling results will be stored and [es] containts Elastic Search  options.
+First, create a `config.ini` file by copying the `profiler/template_config.ini` file and filling in the empty fields. [subjectdb] represents the database you will be profiling, [metadb] represents the database where profiling results will be stored and [es] containts Elastic Search  options.
 
 * `workon dev3.4`
 * `python profiler/profiler.py`
