@@ -146,25 +146,32 @@ class MysqlMetaMiner():
 			retval = [ PrimaryKey(db_catalog=d[1], db_schema='', tablename=d[2], keyname='expk_' + str(d[2]), db_columns=d[3].split(columnseparator), type='explicit') for d in cursor.fetchall() ]
 		return retval
 
-	def getForeignKeys(self, columnseparator='|'):
+	def getForeignKeys(self, table=None, columnseparator='|'):
 		retval = []
 		with pymysql.connect(host=self.db_host, user=self.db_user, passwd=self.db_password, db=self.db_catalog) as cursor:
-			cursor.execute(""" 
+			query = """
 				SELECT
-					TABLE_CATALOG, TABLE_SCHEMA, REFERENCED_TABLE_SCHEMA, TABLE_NAME, REFERENCED_TABLE_NAME, CONSTRAINT_NAME, GROUP_CONCAT(COLUMN_NAME SEPARATOR '{0}'), GROUP_CONCAT(REFERENCED_COLUMN_NAME SEPARATOR '{0}')
-				FROM 
+					TABLE_CATALOG, TABLE_SCHEMA, REFERENCED_TABLE_SCHEMA, TABLE_NAME, REFERENCED_TABLE_NAME, CONSTRAINT_NAME, GROUP_CONCAT(COLUMN_NAME SEPARATOR %s), GROUP_CONCAT(REFERENCED_COLUMN_NAME SEPARATOR %s)
+				FROM
 					INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-				WHERE 
-					TABLE_SCHEMA = '{1}'
+				WHERE
+					TABLE_SCHEMA = %s
 					AND
 					REFERENCED_TABLE_NAME IS NOT NULL
 					AND
 					REFERENCED_TABLE_SCHEMA IS NOT NULL
 					AND
 					REFERENCED_COLUMN_NAME IS NOT NULL
+					{0}
 				GROUP BY
 					TABLE_NAME, TABLE_SCHEMA, REFERENCED_TABLE_NAME, REFERENCED_TABLE_SCHEMA
-			""".format(columnseparator, self.db_catalog))
+			"""
+			if table==None:
+				query=query.format("")
+				cursor.execute(query, (columnseparator, columnseparator, self.db_catalog))
+			else:
+				query=query.format("AND REFERENCED_TABLE_NAME = %s")
+				cursor.execute(query, (columnseparator, columnseparator, self.db_catalog, table.tablename))
 			retval = [ ForeignKey(db_catalog=d[1],
 								  schema='', tablename=d[3], columns=d[6].split(columnseparator),
 								  ref_schema='', ref_tablename=d[4], ref_columns=d[7].split(columnseparator),
