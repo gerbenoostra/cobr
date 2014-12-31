@@ -1,14 +1,5 @@
 import configparser
-from optparse import OptionParser
 from MetaMiner import MetaMiner
-
-parser = OptionParser()
-parser.add_option("-i", "--host", dest="db_host", help="", metavar="string")
-parser.add_option("-u", "--user", dest="db_user", help="", metavar="string")
-parser.add_option("-p", "--password", dest="db_password", help="", metavar="string")
-parser.add_option("-c", "--catalog", dest="db_catalog", help="", metavar="string")
-(options, args) = parser.parse_args()
-
 
 def main():
 	config = configparser.ConfigParser()
