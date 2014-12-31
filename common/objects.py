@@ -173,8 +173,14 @@ class Table(Base):
 
 		self.date_added = datetime.datetime.now()
 
+	def full_name(self):
+		"""The fully qualified name (including catalog, db_schema and tablename)"""
+		return ".".join(["[{}]".format(name) for name in [self.db_catalog,
+						 self.db_schema,
+						 self.tablename] if len(name) > 0 ])
+
 	def __str__(self):
-		return "{0}.{1}.{2}".format(self.db_catalog, self.db_schema, self.tablename)
+		return self.full_name()
 
 class Column(Base):
 	__tablename__ = 'mcolumn'

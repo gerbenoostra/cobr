@@ -271,34 +271,68 @@ class MssqlMetaMiner():
 				) for d in cursor.fetchall() ]
 		return retval
 
-	def getQueryForFlatTable(self, table):
+	def flat_table_query_full(self, table):
+		""""Create SQL query to select all rows of provided table, left joined with all tables that are referenced by foreign keys"""
+		fks = self.getForeignKeys(table)
+		return self.flat_table_query(table, fks)
+
+	def flat_table_query(self, table, foreignkeys):
+		""""Create SQL query to select all rows of provided table, left joined with all tables that are referenced by the provided foreign keys"""
 		query_select = ["SELECT {0}.*".format(table.tablename)]
 		query_from = ["FROM {0} as {1}".format(table.__str__(), table.tablename)]
-		fks = self.getForeignKeys(table)
-		for fk in fks:
-			#TODO: only works for single columns
+		for fk in foreignkeys:
+			#TODO: only works for single column foreign keys
 			ref_alias = "{0}_{1}".format(fk.columns, fk.ref_tablename)
-			query_select.extend(["{0}.{1} AS {2}_{1}".format(ref_alias, c.columnname, fk.columns)
+			query_select.extend(["{0}.{1} AS {0}_{1}".format(ref_alias, c.columnname)
 								 for c in self.getColumns(fk.reftable())])
-			query_from.extend(["LEFT JOIN {0} AS {1} ON {2}.{3}={1}.{4}".format(fk.reftable().__str__(), ref_alias,
+			query_from.extend(["LEFT JOIN {0} AS {1} ON {2}.{3}={1}.{4}".format(fk.reftable().full_name(), ref_alias,
 																				fk.tablename, fk.columns,
 																				fk.ref_columns)])
 		query="{0}\r\n{1}".format(",\r\n       ".join(query_select),
 								"\r\n     ".join(query_from))
 		return query
 
-	def executefetch(self, query, *args):
+	def execute_fetch(self, query, *args):
 		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
 			with conn.cursor() as cursor:
 				cursor.execute(query, args)
 				retval = [ d for d in cursor.fetchall() ]
 		return retval
 
-	def execute(self, query, *args):
+	def execute(self, query, log_file=None, *args):
 		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
 			with conn.cursor() as cursor:
 				cursor.execute(query, args)
 			conn.commit()
+		if log_file is not None:
+			with open(log_file, "w") as sql_file:
+				sql_file.write(query)
+				sql_file.writelines(["-- %s " % arg for arg in args])
 
-	def getQueryForView(self, view_name, query):
-		return "CREATE VIEW {0} AS \r\n{1};".format(view_name, query)
+	def view_query_wrap(self, view, query):
+		return "CREATE VIEW {0} AS \r\n{1};".format(view.tablename, query)
+
+	def drop_table(self, table, if_exists=True):
+		table_name = table.full_name()
+		self.execute("{0}DROP TABLE {1}".format(
+			"IF OBJECT_ID({0}, 'U') IS NOT NULL ".format(table_name) if if_exists else "",
+			table_name))
+
+	def drop_view(self, table, if_exists=True):
+		if if_exists:
+			self.execute("""
+			USE {0}
+			IF EXISTS (SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS
+					 WHERE TABLE_NAME = '{1}')
+			   DROP VIEW {1}
+			""".format(
+				table.db_catalog,
+				table.tablename))
+		else:
+			self.execute("""
+			USE {0}
+			DROP VIEW {1}
+			GO
+			""".format(
+				table.db_catalog,
+				table.tablename))
