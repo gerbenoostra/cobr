@@ -132,7 +132,7 @@ class ForeignKey(Base):
 	def table(self):
 		return Table(self.db_catalog, self.db_schema, self.tablename)
 
-	def refTable(self):
+	def reftable(self):
 		return Table(self.db_catalog, self.ref_db_schema, self.ref_tablename)
 
 	def __str__(self):

@@ -273,23 +273,32 @@ class MssqlMetaMiner():
 
 	def getQueryForFlatTable(self, table):
 		query_select = ["SELECT {0}.*".format(table.tablename)]
-		query_from = ["FROM {0} ".format(table.tablename)]
+		query_from = ["FROM {0} as {1}".format(table.__str__(), table.tablename)]
 		fks = self.getForeignKeys(table)
 		for fk in fks:
 			#TODO: only works for single columns
 			ref_alias = "{0}_{1}".format(fk.columns, fk.ref_tablename)
 			query_select.extend(["{0}.{1} AS {2}_{1}".format(ref_alias, c.columnname, fk.columns)
-								 for c in self.getColumns(fk.refTable())])
-			query_from.extend(["LEFT JOIN {0} AS {1} ON {2}.{3}={1}.{4}".format(fk.ref_tablename, ref_alias,
+								 for c in self.getColumns(fk.reftable())])
+			query_from.extend(["LEFT JOIN {0} AS {1} ON {2}.{3}={1}.{4}".format(fk.reftable().__str__(), ref_alias,
 																				fk.tablename, fk.columns,
 																				fk.ref_columns)])
 		query="{0}\r\n{1}".format(",\r\n       ".join(query_select),
 								"\r\n     ".join(query_from))
 		return query
 
-	def execute(self, query, *args):
+	def executefetch(self, query, *args):
 		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
 			with conn.cursor() as cursor:
 				cursor.execute(query, args)
 				retval = [ d for d in cursor.fetchall() ]
 		return retval
+
+	def execute(self, query, *args):
+		with pymssql.connect(self.db_host, self.db_user, self.db_password, self.db_catalog) as conn:
+			with conn.cursor() as cursor:
+				cursor.execute(query, args)
+			conn.commit()
+
+	def getQueryForView(self, view_name, query):
+		return "CREATE VIEW {0} AS \r\n{1};".format(view_name, query)

@@ -192,7 +192,7 @@ class MysqlMetaMiner():
 			#TODO: only works for single columns
 			ref_alias = "{0}_{1}".format(fk.columns, fk.ref_tablename)
 			query_select.extend(["{0}.{1} AS {2}_{1}".format(ref_alias, c.columnname, fk.columns)
-								 for c in self.getColumns(fk.refTable())])
+								 for c in self.getColumns(fk.reftable())])
 			query_from.extend(["LEFT JOIN {0} AS {1} ON {2}.{3}={1}.{4}".format(fk.ref_tablename, ref_alias,
 																				fk.tablename, fk.columns,
 																				fk.ref_columns)])
@@ -200,8 +200,16 @@ class MysqlMetaMiner():
 								"\r\n     ".join(query_from))
 		return query
 
-	def execute(self, query, *args):
+	def executefetch(self, query, *args):
 		with pymysql.connect(host=self.db_host, user=self.db_user, passwd=self.db_password, db=self.db_catalog) as cursor:
 			cursor.execute(query, args)
 			retval = [ d for d in cursor.fetchall() ]
 		return retval
+
+	def execute(self, query, *args):
+		with pymysql.connect(host=self.db_host, user=self.db_user, passwd=self.db_password, db=self.db_catalog) as cursor:
+			cursor.execute(query, args)
+			cursor.commit()
+
+	def getQueryForView(self, view_name, query):
+		return "CREATE VIEW {0} AS \r\n{1};".format(view_name, query)
